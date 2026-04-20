@@ -87,8 +87,26 @@ class DatabaseSeeder extends Seeder
             'is_active' => true,
         ]);
 
+        // ── Company 3: African Queen Adventures ────────────────
+        $company3 = Company::create([
+            'name' => 'African Queen Adventures',
+            'email' => 'info@africanqueenadventures.com',
+            'phone' => '+255 754 813 378',
+            'address' => 'Arusha, Tanzania',
+            'is_active' => true,
+        ]);
+
+        User::factory()->create([
+            'company_id' => $company3->id,
+            'name' => 'Joseph Lyimo',
+            'email' => 'info@africanqueenadventure.com',
+            'password' => 'Scopboy20',
+            'role' => User::ROLE_ADMIN,
+            'is_active' => true,
+        ]);
+
         // ── Default PDF Templates ──────────────────────────────
-        foreach ([$company1, $company2] as $company) {
+        foreach ([$company1, $company2, $company3] as $company) {
             ItineraryTemplate::firstOrCreate(
                 ['company_id' => $company->id, 'is_default' => true],
                 [
