@@ -26,8 +26,8 @@ class UserFactory extends Factory
     {
         return [
             'company_id' => null,
-            'name' => $this->faker->name(),
-            'email' => $this->faker->unique()->safeEmail(),
+            'name' => 'Test User',
+            'email' => 'test'.Str::random(5).'@example.com',
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'role' => User::ROLE_STAFF,
