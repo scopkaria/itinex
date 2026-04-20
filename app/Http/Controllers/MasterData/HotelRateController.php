@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\MasterData;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\TenantScoped;
 use App\Models\MasterData\HotelRate;
 use App\Models\MasterData\Hotel;
 use Illuminate\Http\JsonResponse;
@@ -10,9 +11,12 @@ use Illuminate\Http\Request;
 
 class HotelRateController extends Controller
 {
-    public function index(Hotel $hotel): JsonResponse
+    use TenantScoped;
+
+    public function index(Request $request, Hotel $hotel): JsonResponse
     {
         $rates = $hotel->rates()
+            ->where('company_id', $this->companyId($request))
             ->with(['roomType', 'mealPlan'])
             ->orderBy('start_date')
             ->get();
@@ -32,6 +36,7 @@ class HotelRateController extends Controller
         ]);
 
         $data['hotel_id'] = $hotel->id;
+        $data['company_id'] = $this->companyId($request);
         $rate = HotelRate::create($data);
 
         return response()->json($rate->load(['roomType', 'mealPlan']), 201);

@@ -593,14 +593,13 @@ class WebController extends Controller
         // Get master data for dropdowns
         $companyId = $itinerary->company_id;
         $hotelRates = HotelRate::with(['hotel', 'roomType', 'mealPlan'])
-            ->whereHas('hotel', fn($q) => $q->where('company_id', $companyId))
+            ->where('company_id', $companyId)
             ->get();
-        $destinationFees = DestinationFee::with('destination')
-            ->where('company_id', $companyId)->get();
-        $vehicles = Vehicle::where('company_id', $companyId)->get();
-        $flights = Flight::where('company_id', $companyId)->get();
-        $activities = Activity::where('company_id', $companyId)->get();
-        $extras = Extra::where('company_id', $companyId)->get();
+        $destinationFees = DestinationFee::with('destination')->get();
+        $vehicles = Vehicle::all();
+        $flights = Flight::all();
+        $activities = Activity::all();
+        $extras = Extra::all();
 
         // Cost sheet
         $costSheet = app(CostSheetService::class)->generate($itinerary);

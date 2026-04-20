@@ -9,6 +9,7 @@ class HotelRate extends Model
 {
     protected $fillable = [
         'hotel_id',
+        'company_id',
         'season',
         'start_date',
         'end_date',
