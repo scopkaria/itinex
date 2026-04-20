@@ -22,11 +22,7 @@ class MiscellaneousController extends Controller
 
     private function scopedQuery()
     {
-        $query = Extra::query();
-        if (!$this->isSuperAdmin()) {
-            $query->where('company_id', $this->companyId());
-        }
-        return $query;
+        return Extra::query();
     }
 
     private function resolveCompanyId(Request $request): int

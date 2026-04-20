@@ -30,11 +30,7 @@ class TransportProviderController extends Controller
 
     private function scopedQuery($model)
     {
-        $query = $model::query();
-        if (!$this->isSuperAdmin()) {
-            $query->where('company_id', $this->companyId());
-        }
-        return $query;
+        return $model::query();
     }
 
     private function resolveCompanyId(Request $request): int

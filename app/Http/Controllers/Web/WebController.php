@@ -38,10 +38,10 @@ class WebController extends Controller
         return Auth::user()->isSuperAdmin();
     }
 
-    private function scopedQuery($model)
+    private function scopedQuery($model, bool $tenantOnly = false)
     {
         $query = $model::query();
-        if (!$this->isSuperAdmin()) {
+        if ($tenantOnly && !$this->isSuperAdmin()) {
             $query->where('company_id', $this->companyId());
         }
         return $query;
@@ -545,7 +545,7 @@ class WebController extends Controller
 
     public function itineraries()
     {
-        $itineraries = $this->scopedQuery(Itinerary::class)
+        $itineraries = $this->scopedQuery(Itinerary::class, true)
             ->withCount('days')
             ->orderByDesc('created_at')
             ->get();

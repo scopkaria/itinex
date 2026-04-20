@@ -40,11 +40,7 @@ class AccommodationController extends Controller
 
     private function scopedQuery($model)
     {
-        $query = $model::query();
-        if (!$this->isSuperAdmin()) {
-            $query->where('company_id', $this->companyId());
-        }
-        return $query;
+        return $model::query();
     }
 
     private function resolveCompanyId(Request $request): int
@@ -71,9 +67,7 @@ class AccommodationController extends Controller
 
     private function authorize(Hotel $hotel): void
     {
-        if (!$this->isSuperAdmin() && $hotel->company_id !== $this->companyId()) {
-            abort(403);
-        }
+        // Master data is accessible to all authenticated users
     }
 
     // ─── List ──────────────────────────────────────────────────
