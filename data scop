@@ -1,0 +1,13 @@
+Dashboard at http://localhost/Itinex/public/dashboard — sidebar layout with stats cards, and for super admin: companies table + all users table with role badges.
+
+Seeded accounts (all passwords: password):
+
+Email	Role	Company
+admin@itinex.com	Super Admin	—
+james@safarikings.com	Admin	Safari Kings Ltd
+grace@safarikings.com	Staff	Safari Kings Ltd
+amina@zanzibardreams.com	Admin	Zanzibar Dreams Tours
+omar@zanzibardreams.com	Staff	Zanzibar Dreams Tours
+asen@emeraldbg.com	Admin	African Queen Adventures
+sanjay.lakhtaria@gttnt.com	Staff	African Queen Adventures
+Open http://localhost/Itinex/public/ and login with admin@itinex.com / password to see the full super admin dashboard with all 3 companies and all 7 seeded users.

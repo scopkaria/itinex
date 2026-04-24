@@ -13,11 +13,17 @@ use App\Models\MasterData\TransportMedia;
 use App\Models\MasterData\TransportProvider;
 use App\Models\MasterData\TransportRate;
 use App\Models\MasterData\VehicleType;
+use App\Services\Pricing\RateAuditVersioningService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class TransportProviderController extends Controller
 {
+    public function __construct(
+        private readonly RateAuditVersioningService $rateAuditService,
+    ) {
+    }
+
     private function companyId(): ?int
     {
         return Auth::user()->company_id;
@@ -272,14 +278,57 @@ class TransportProviderController extends Controller
             'valid_to' => 'nullable|date|after_or_equal:valid_from',
             'currency' => 'nullable|string|size:3',
         ]);
-        $provider->rates()->create($data);
+
+        if (!empty($data['vehicle_type_id']) && !$provider->vehicleTypes()->whereKey($data['vehicle_type_id'])->exists()) {
+            return back()->withErrors(['vehicle_type_id' => 'Selected vehicle type does not belong to this provider.'])->withInput();
+        }
+
+        if (!empty($data['transfer_route_id']) && !$provider->transferRoutes()->whereKey($data['transfer_route_id'])->exists()) {
+            return back()->withErrors(['transfer_route_id' => 'Selected transfer route does not belong to this provider.'])->withInput();
+        }
+
+        // transport_rates.season_name is NOT NULL in schema, so use a safe fallback.
+        $data['season_name'] = trim((string) ($data['season_name'] ?? '')) ?: 'Year Round';
+
+        $rate = $provider->rates()->create($data);
+
+        $this->rateAuditService->record(
+            module: 'transport',
+            companyId: (int) $provider->company_id,
+            providerId: (int) $provider->id,
+            providerType: TransportProvider::class,
+            entityType: 'transport_rate',
+            entityId: (int) $rate->id,
+            action: 'created',
+            beforeState: null,
+            afterState: $rate->toArray(),
+            changedBy: Auth::id(),
+            source: 'web'
+        );
+
         return back()->with('success', 'Rate added.');
     }
 
     public function deleteRate(TransportProvider $provider, TransportRate $rate)
     {
         $this->authorize($provider);
+        $before = $rate->toArray();
         $rate->delete();
+
+        $this->rateAuditService->record(
+            module: 'transport',
+            companyId: (int) $provider->company_id,
+            providerId: (int) $provider->id,
+            providerType: TransportProvider::class,
+            entityType: 'transport_rate',
+            entityId: (int) ($before['id'] ?? 0),
+            action: 'deleted',
+            beforeState: $before,
+            afterState: null,
+            changedBy: Auth::id(),
+            source: 'web'
+        );
+
         return back()->with('success', 'Rate deleted.');
     }
 

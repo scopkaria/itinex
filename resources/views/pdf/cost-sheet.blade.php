@@ -35,6 +35,8 @@
     tbody td { padding: 6px 10px; border-bottom: 1px solid #f3f4f6; }
     .text-right { text-align: right; }
     .mono { font-family: 'Courier New', monospace; font-size: 10px; }
+    .cell-image { width: 56px; height: 38px; border-radius: 4px; overflow: hidden; background: #e5e7eb; }
+    .cell-image img { width: 100%; height: 100%; object-fit: cover; }
     .subtotal-row td { background: #f9fafb; font-weight: 700; border-top: 1px solid #e5e7eb; }
 
     /* ── Grand Totals ──────────── */
@@ -100,7 +102,7 @@
     <div class="section-title">Accommodation <span class="count">({{ count($costSheet['breakdown']['accommodation']) }} items)</span></div>
     <table>
         <thead>
-            <tr><th>Day</th><th>Property</th><th>Room Type</th><th>Meal Plan</th><th class="text-right">Rate</th><th class="text-right">Pax</th><th class="text-right">Total</th></tr>
+            <tr><th>Day</th><th>Image</th><th>Property</th><th>Room Type</th><th>Meal Plan</th><th class="text-right">Rate</th><th class="text-right">Pax</th><th class="text-right">Total</th></tr>
         </thead>
         <tbody>
             @php $accomTotal = 0; @endphp
@@ -108,6 +110,7 @@
             @php $accomTotal += $a['total']; @endphp
             <tr>
                 <td>{{ $a['day'] }}</td>
+                <td><div class="cell-image">@if(!empty($a['image_path']))<img src="{{ public_path('storage/' . $a['image_path']) }}" alt="">@endif</div></td>
                 <td>{{ $a['hotel'] }}</td>
                 <td>{{ $a['room_type'] }}</td>
                 <td>{{ $a['meal_plan'] }}</td>
@@ -116,7 +119,7 @@
                 <td class="text-right mono">${{ number_format($a['total'], 2) }}</td>
             </tr>
             @endforeach
-            <tr class="subtotal-row"><td colspan="6">Subtotal</td><td class="text-right mono">${{ number_format($accomTotal, 2) }}</td></tr>
+            <tr class="subtotal-row"><td colspan="7">Subtotal</td><td class="text-right mono">${{ number_format($accomTotal, 2) }}</td></tr>
         </tbody>
     </table>
 </div>
@@ -130,7 +133,7 @@
     <div class="section-title">Park & Conservation Fees <span class="count">({{ count($costSheet['breakdown']['park_fees']) }} items)</span></div>
     <table>
         <thead>
-            <tr><th>Day</th><th>Park</th><th>Category</th><th class="text-right">Fee/Person</th><th class="text-right">Pax</th><th class="text-right">Total</th></tr>
+            <tr><th>Day</th><th>Image</th><th>Park</th><th>Category</th><th class="text-right">Fee/Person</th><th class="text-right">Pax</th><th class="text-right">Total</th></tr>
         </thead>
         <tbody>
             @php $parkTotal = 0; @endphp
@@ -138,6 +141,7 @@
             @php $parkTotal += $p['total']; @endphp
             <tr>
                 <td>{{ $p['day'] }}</td>
+                <td><div class="cell-image">@if(!empty($p['image_path']))<img src="{{ public_path('storage/' . $p['image_path']) }}" alt="">@endif</div></td>
                 <td>{{ $p['park_name'] }}</td>
                 <td>{{ $p['resident_type'] }}</td>
                 <td class="text-right mono">${{ number_format($p['price_per_person'], 2) }}</td>
@@ -145,7 +149,7 @@
                 <td class="text-right mono">${{ number_format($p['total'], 2) }}</td>
             </tr>
             @endforeach
-            <tr class="subtotal-row"><td colspan="5">Subtotal</td><td class="text-right mono">${{ number_format($parkTotal, 2) }}</td></tr>
+            <tr class="subtotal-row"><td colspan="6">Subtotal</td><td class="text-right mono">${{ number_format($parkTotal, 2) }}</td></tr>
         </tbody>
     </table>
 </div>

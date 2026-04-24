@@ -28,6 +28,8 @@
     thead th:last-child { text-align: right; }
     tbody td { padding: 8px 12px; border-bottom: 1px solid #f3f4f6; }
     tbody td:last-child { text-align: right; font-weight: 600; font-family: monospace; font-size: 10px; }
+    .row-image { width: 52px; height: 36px; border-radius: 4px; overflow: hidden; background: #e5e7eb; }
+    .row-image img { width: 100%; height: 100%; object-fit: cover; }
     tbody tr:nth-child(even) { background: #f9fafb; }
     .type-badge { display: inline-block; background: #eef2ff; color: {{ $template->primary_color ?? '#4f46e5' }}; padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 600; text-transform: uppercase; }
 
@@ -94,41 +96,27 @@
     <thead>
         <tr>
             <th>Day</th>
+            <th>Image</th>
             <th>Service</th>
             <th>Description</th>
             <th>Amount</th>
         </tr>
     </thead>
     <tbody>
-        @foreach($itinerary->days as $day)
-            @foreach($day->items as $item)
-            @php
-                $ref = $item->reference();
-                $label = match($item->type) {
-                    'hotel' => $ref ? ($ref->hotel?->name . ' — ' . $ref->roomType?->type) : 'Accommodation',
-                    'transport' => $ref ? $ref->name : 'Transport',
-                    'park_fee' => $ref ? $ref->park_name : 'Park Fee',
-                    'flight' => $ref ? ($ref->name . ' · ' . $ref->origin . ' → ' . $ref->destination) : 'Flight',
-                    'activity' => $ref ? $ref->name : 'Activity',
-                    'extra' => $ref ? $ref->name : 'Extra',
-                    default => ucfirst($item->type),
-                };
-                $typeLabel = match($item->type) {
-                    'hotel' => 'Hotel', 'transport' => 'Transport', 'park_fee' => 'Park',
-                    'flight' => 'Flight', 'activity' => 'Activity', 'extra' => 'Extra', default => $item->type,
-                };
-                // For client quotation, show selling price (with markup) per item
-                $itemCost = $item->total_price ?? 0;
-                $markupPct = $itinerary->markup_percentage ?? 0;
-                $itemSelling = $markupPct > 0 ? round($itemCost * (1 + $markupPct / 100), 2) : $itemCost;
-            @endphp
+        @foreach($quotationRows as $row)
             <tr>
-                <td>Day {{ $day->day_number }}</td>
-                <td><span class="type-badge">{{ $typeLabel }}</span></td>
-                <td>{{ $label }}</td>
-                <td>${{ number_format($itemSelling, 2) }}</td>
+                <td>Day {{ $row['day_number'] }}</td>
+                <td>
+                    <div class="row-image">
+                        @if($row['image_path'])
+                            <img src="{{ public_path('storage/' . $row['image_path']) }}" alt="">
+                        @endif
+                    </div>
+                </td>
+                <td><span class="type-badge">{{ $row['type_label'] }}</span></td>
+                <td>{{ $row['label'] }}</td>
+                <td>${{ number_format($row['amount'], 2) }}</td>
             </tr>
-            @endforeach
         @endforeach
     </tbody>
 </table>
@@ -143,7 +131,7 @@
     </div>
     <div class="totals-row">
         <span>Price Per Person</span>
-        <span>${{ number_format($costSheet['totals']['per_person_cost'], 2) }}</span>
+        <span>${{ number_format($costSheet['totals']['per_person_selling'] ?? $costSheet['totals']['per_person_cost'], 2) }}</span>
     </div>
     <div class="totals-row grand">
         <span>Total Due</span>

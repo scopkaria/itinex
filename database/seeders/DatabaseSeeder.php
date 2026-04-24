@@ -91,19 +91,18 @@ class DatabaseSeeder extends Seeder
         $company3 = Company::create([
             'name' => 'African Queen Adventures',
             'email' => 'info@africanqueenadventures.com',
-            'phone' => '+255 754 813 378',
-            'address' => 'Arusha, Tanzania',
+            'phone' => '+255 789 883 040',
+            'address' => "info@africanqueenadventures.com\nwww.africanqueenadventures.com\n+255 789 883 040",
             'is_active' => true,
         ]);
 
-        User::factory()->create([
-            'company_id' => $company3->id,
-            'name' => 'Joseph Lyimo',
-            'email' => 'info@africanqueenadventure.com',
-            'password' => 'Scopboy20',
-            'role' => User::ROLE_ADMIN,
-            'is_active' => true,
-        ]);
+        (new AfricanQueenLegacySeeder())->seedForCompany($company3);
+
+        // ── Flight Module Test Data ────────────────────────────
+        (new FlightProviderSeeder())->run();
+
+        // ── Transport Module Test Data ─────────────────────────
+        (new TransportProviderSeeder())->run();
 
         // ── Default PDF Templates ──────────────────────────────
         foreach ([$company1, $company2, $company3] as $company) {

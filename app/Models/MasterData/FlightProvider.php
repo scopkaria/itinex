@@ -49,4 +49,40 @@ class FlightProvider extends Model
     {
         return $this->hasMany(FlightPolicy::class);
     }
+
+    // ─── Pricing Engine Relations ─────────────────────────────
+    public function rateYears()
+    {
+        return $this->hasMany(FlightRateYear::class);
+    }
+
+    public function seasons()
+    {
+        return $this->hasMany(FlightSeason::class);
+    }
+
+    public function rateTypes()
+    {
+        return $this->hasMany(FlightRateType::class);
+    }
+
+    public function charterRates()
+    {
+        return $this->hasMany(FlightCharterRate::class);
+    }
+
+    public function paymentPolicies()
+    {
+        return $this->hasMany(FlightPaymentPolicy::class);
+    }
+
+    public function cancellationPolicies()
+    {
+        return $this->hasMany(FlightCancellationPolicy::class);
+    }
+
+    public function rateVersions()
+    {
+        return $this->hasMany(FlightRateVersion::class);
+    }
 }

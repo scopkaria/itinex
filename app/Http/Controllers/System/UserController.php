@@ -4,6 +4,7 @@ namespace App\Http\Controllers\System;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Traits\TenantScoped;
+use App\Models\Company;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -35,12 +36,12 @@ class UserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'unique:users,email'],
             'password' => ['required', Password::defaults()],
-            'role' => ['required', 'in:admin,staff'],
+            'role' => ['required', 'in:admin,staff,hotel'],
         ];
 
         if ($user->isSuperAdmin()) {
             $rules['company_id'] = ['required', 'exists:companies,id'];
-            $rules['role'] = ['required', 'in:super_admin,admin,staff'];
+            $rules['role'] = ['required', 'in:super_admin,admin,staff,hotel'];
         }
 
         $data = $request->validate($rules);
@@ -48,6 +49,14 @@ class UserController extends Controller
 
         if (!$user->isSuperAdmin()) {
             $data['company_id'] = $user->company_id;
+        }
+
+        $company = Company::findOrFail($data['company_id']);
+        if (!$company->canAddUser()) {
+            return response()->json([
+                'message' => 'User limit reached for this company plan.',
+                'max_users' => (int) $company->max_users,
+            ], 422);
         }
 
         $newUser = User::create($data);
@@ -82,10 +91,10 @@ class UserController extends Controller
         ];
 
         if ($currentUser->isSuperAdmin()) {
-            $rules['role'] = ['sometimes', 'in:super_admin,admin,staff'];
+            $rules['role'] = ['sometimes', 'in:super_admin,admin,staff,hotel'];
             $rules['company_id'] = ['sometimes', 'exists:companies,id'];
         } elseif ($currentUser->isAdmin()) {
-            $rules['role'] = ['sometimes', 'in:admin,staff'];
+            $rules['role'] = ['sometimes', 'in:admin,staff,hotel'];
         }
 
         $data = $request->validate($rules);

@@ -6,18 +6,34 @@ use App\Models\Itinerary\Itinerary;
 use App\Models\Itinerary\ItineraryItem;
 use App\Models\MasterData\Activity;
 use App\Models\MasterData\Extra;
-use App\Models\MasterData\DestinationFee;
+use App\Models\MasterData\ParkFee;
 use App\Models\MasterData\Flight;
+use App\Models\MasterData\ScheduledFlight;
 use App\Models\MasterData\HotelRate;
+use App\Models\MasterData\TransportTransferRate;
 use App\Models\MasterData\Vehicle;
+use App\Services\Pricing\PartnerPricingOverrideService;
+use App\Services\Pricing\PricingEngineService;
+use App\Services\Pricing\PricingInput;
 
 class ItineraryService
 {
+    public function __construct(
+        private readonly PricingEngineService $pricingEngine,
+        private readonly PartnerPricingOverrideService $partnerOverrideService,
+    ) {
+    }
+
     /**
      * Calculate cost for a single item based on its type and the itinerary context.
      */
     public function calculateItemCost(ItineraryItem $item, Itinerary $itinerary): float
     {
+        $manualCost = data_get($item->meta, 'manual_cost');
+        if ($manualCost !== null) {
+            return round((float) $manualCost, 2);
+        }
+
         $people = $itinerary->number_of_people;
         $quantity = $item->quantity;
 
@@ -42,7 +58,7 @@ class ItineraryService
             return 0;
         }
 
-        return round((float) $rate->price_per_person * $people * $nights, 2);
+        return $this->computeTotal((float) $rate->price_per_person * $people * $nights);
     }
 
     /**
@@ -51,12 +67,18 @@ class ItineraryService
      */
     private function calculateTransportCost(int $vehicleId, int $people, int $days): float
     {
+        // Transfer rates are stored as transport items with an explicit source.
+        $transferRate = TransportTransferRate::find($vehicleId);
+        if ($transferRate) {
+            return $this->computeTotal((float) ($transferRate->sell_price ?? $transferRate->buy_price ?? 0) * $days);
+        }
+
         $vehicle = Vehicle::find($vehicleId);
         if (!$vehicle) {
             return 0;
         }
 
-        return round((float) $vehicle->price_per_day * $days, 2);
+        return $this->computeTotal((float) $vehicle->price_per_day * $days);
     }
 
     /**
@@ -64,17 +86,15 @@ class ItineraryService
      */
     private function calculateParkFeeCost(int $feeId, int $people, int $days): float
     {
-        $fee = DestinationFee::find($feeId);
+        $fee = ParkFee::find($feeId);
         if (!$fee) {
             return 0;
         }
 
-        $base = round((float) $fee->non_resident_adult * $people * $days, 2);
+        $base = (float) $fee->non_resident_adult * $people * $days;
         $markup = (float) $fee->markup;
-        if ($markup > 0) {
-            $base = round($base * (1 + $markup / 100), 2);
-        }
-        return $base;
+
+        return $this->computeTotal($base, $markup);
     }
 
     /**
@@ -87,7 +107,7 @@ class ItineraryService
             return 0;
         }
 
-        return round((float) $activity->price_per_person * $people * $quantity, 2);
+        return $this->computeTotal((float) $activity->price_per_person * $people * $quantity);
     }
 
     /**
@@ -100,7 +120,7 @@ class ItineraryService
             return 0;
         }
 
-        return round((float) $extra->price * $quantity, 2);
+        return $this->computeTotal((float) $extra->price * $quantity);
     }
 
     /**
@@ -108,12 +128,21 @@ class ItineraryService
      */
     private function calculateFlightCost(int $flightId, int $people, int $quantity): float
     {
+        $scheduled = ScheduledFlight::find($flightId);
+        if ($scheduled) {
+            $adultPrice = (float) $scheduled->base_adult_price;
+            $childPrice = (float) $scheduled->base_child_price;
+            $base = (($adultPrice + $childPrice) / 2) * $people * $quantity;
+
+            return $this->computeTotal($base);
+        }
+
         $flight = Flight::find($flightId);
         if (!$flight) {
             return 0;
         }
 
-        return round((float) $flight->price_per_person * $people * $quantity, 2);
+        return $this->computeTotal((float) $flight->price_per_person * $people * $quantity);
     }
 
     /**
@@ -172,10 +201,8 @@ class ItineraryService
 
         $markup = (float) $itinerary->markup_percentage;
 
-        if ($markup > 0) {
-            // Markup overrides item-level selling prices
-            $totalPrice = round($totalCost + ($totalCost * $markup / 100), 2);
-        }
+        // Always derive totals from the pricing engine for consistency.
+        $totalPrice = $this->computeTotal($totalCost, $markup);
 
         $profit = round($totalPrice - $totalCost, 2);
         $margin = $totalPrice > 0 ? round(($profit / $totalPrice) * 100, 2) : 0;
@@ -194,15 +221,35 @@ class ItineraryService
     /**
      * Build the clean summary response.
      */
-    public function summary(Itinerary $itinerary): array
+    public function summary(Itinerary $itinerary, ?string $partnerType = null, ?string $partnerKey = null): array
     {
+        $override = $this->partnerOverrideService->activeOverride($itinerary, $partnerType, $partnerKey);
+        $overrideTotals = $this->partnerOverrideService->apply((float) $itinerary->total_price, $override);
+
         return [
             'total_cost' => (float) $itinerary->total_cost,
-            'total_price' => (float) $itinerary->total_price,
-            'profit' => (float) $itinerary->profit,
+            'base_total_price' => $overrideTotals['base_total'],
+            'total_price' => $overrideTotals['final_total'],
+            'override_amount' => $overrideTotals['override_amount'],
+            'override' => $overrideTotals['override'],
+            'profit' => round($overrideTotals['final_total'] - (float) $itinerary->total_cost, 2),
             'markup_percentage' => (float) $itinerary->markup_percentage,
-            'margin_percentage' => (float) $itinerary->margin_percentage,
-            'profit_status' => $itinerary->profitStatus(),
+            'margin_percentage' => $overrideTotals['final_total'] > 0
+                ? round((($overrideTotals['final_total'] - (float) $itinerary->total_cost) / $overrideTotals['final_total']) * 100, 2)
+                : 0,
+            'profit_status' => $overrideTotals['final_total'] > (float) $itinerary->total_cost
+                ? 'profit'
+                : ($overrideTotals['final_total'] < (float) $itinerary->total_cost ? 'loss' : 'low'),
         ];
+    }
+
+    private function computeTotal(float $baseRate, float $markupPercent = 0): float
+    {
+        $breakdown = $this->pricingEngine->compute(new PricingInput(
+            baseRate: $baseRate,
+            markupPercent: $markupPercent,
+        ));
+
+        return round($breakdown->finalTotal, 2);
     }
 }

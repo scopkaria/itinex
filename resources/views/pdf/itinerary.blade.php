@@ -45,6 +45,10 @@
     .day-body { padding: 14px 16px; }
     .day-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f3f4f6; font-size: 11px; }
     .day-item:last-child { border-bottom: none; }
+    .day-item-main { display:flex; align-items:center; gap:10px; flex:1; }
+    .day-item-thumb { width:54px; height:40px; border-radius:6px; overflow:hidden; background:#e5e7eb; flex-shrink:0; }
+    .day-item-thumb img { width:100%; height:100%; object-fit:cover; }
+    .day-item-info { flex:1; }
     .day-item .item-type { display: inline-block; background: #eef2ff; color: {{ $template->primary_color ?? '#4f46e5' }}; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; min-width: 70px; text-align: center; }
     .day-item .item-name { flex: 1; margin-left: 12px; font-weight: 500; }
     .day-empty { color: #9ca3af; font-size: 11px; font-style: italic; }
@@ -105,36 +109,29 @@
         <div class="company-name">{{ $company->name }}</div>
     </div>
 
-    @foreach($itinerary->days as $day)
+    @foreach($previewDays as $day)
     <div class="day-card">
         <div class="day-header">
-            Day {{ $day->day_number }}
-            @if($day->date)
-            <span>{{ \Carbon\Carbon::parse($day->date)->format('l, M d, Y') }}</span>
+            Day {{ $day['day_number'] }}
+            @if($day['date'])
+            <span>{{ \Carbon\Carbon::parse($day['date'])->format('l, M d, Y') }}</span>
             @endif
         </div>
         <div class="day-body">
-            @if($day->items->count())
-                @foreach($day->items as $item)
-                @php
-                    $ref = $item->reference();
-                    $label = match($item->type) {
-                        'hotel' => $ref ? ($ref->hotel?->name . ' — ' . $ref->roomType?->type . ', ' . $ref->mealPlan?->name) : 'Accommodation',
-                        'transport' => $ref ? ($ref->name . ' (' . $ref->capacity . ' pax)') : 'Transport',
-                        'park_fee' => $ref ? $ref->park_name : 'Park Fee',
-                        'flight' => $ref ? ($ref->name . ' · ' . $ref->origin . ' → ' . $ref->destination) : 'Flight',
-                        'activity' => $ref ? $ref->name : 'Activity',
-                        'extra' => $ref ? $ref->name : 'Extra',
-                        default => ucfirst($item->type),
-                    };
-                    $typeLabel = match($item->type) {
-                        'hotel' => 'Hotel', 'transport' => 'Transport', 'park_fee' => 'Park',
-                        'flight' => 'Flight', 'activity' => 'Activity', 'extra' => 'Extra', default => $item->type,
-                    };
-                @endphp
+            @if(count($day['items']))
+                @foreach($day['items'] as $item)
                 <div class="day-item">
-                    <span class="item-type">{{ $typeLabel }}</span>
-                    <span class="item-name">{{ $label }}</span>
+                    <div class="day-item-main">
+                        <div class="day-item-thumb">
+                            @if($item['image_path'])
+                                <img src="{{ public_path('storage/' . $item['image_path']) }}" alt="">
+                            @endif
+                        </div>
+                        <div class="day-item-info">
+                            <span class="item-type">{{ $item['type_label'] }}</span>
+                            <span class="item-name">{{ $item['label'] }}</span>
+                        </div>
+                    </div>
                 </div>
                 @endforeach
             @else

@@ -3,17 +3,41 @@
 namespace App\Models\MasterData;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 
 class AccommodationRoomRate extends Model
 {
     protected $guarded = ['id'];
 
     protected $casts = [
+        'sto_rate_raw' => 'encrypted',
         'adult_rate' => 'decimal:2',
+        'contracted_rate' => 'decimal:2',
+        'promotional_rate' => 'decimal:2',
+        'derived_rate' => 'decimal:2',
+        'markup_percent' => 'decimal:2',
+        'markup_fixed' => 'decimal:2',
         'child_rate' => 'decimal:2',
         'infant_rate' => 'decimal:2',
         'single_supplement' => 'decimal:2',
+        'per_person_sharing_double' => 'decimal:2',
+        'per_person_sharing_twin' => 'decimal:2',
+        'triple_adjustment' => 'decimal:2',
+        'is_override' => 'boolean',
     ];
+
+    public function scopeComputedVisibility(Builder $query): Builder
+    {
+        return $query->whereIn('visibility_mode', ['computed', 'computed_only']);
+    }
+
+    public function scopeCalculatorApproved(Builder $query): Builder
+    {
+        return $query
+            ->computedVisibility()
+            ->whereNotNull('derived_rate')
+            ->where('derived_rate', '>', 0);
+    }
 
     public function hotel()
     {

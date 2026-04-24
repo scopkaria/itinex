@@ -3,8 +3,10 @@
 namespace App\Models\MasterData;
 
 use App\Models\Company;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Hotel extends Model
@@ -104,5 +106,10 @@ class Hotel extends Model
     public function backupRates(): HasMany
     {
         return $this->hasMany(AccommodationBackupRate::class);
+    }
+
+    public function owners(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'hotel_user_assignments');
     }
 }

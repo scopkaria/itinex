@@ -24,6 +24,8 @@ class Itinerary extends Model
         'profit',
         'markup_percentage',
         'margin_percentage',
+        'builder_state',
+        'public_share_token',
     ];
 
     protected function casts(): array
@@ -38,6 +40,7 @@ class Itinerary extends Model
             'profit' => 'decimal:2',
             'markup_percentage' => 'decimal:2',
             'margin_percentage' => 'decimal:2',
+            'builder_state' => 'array',
         ];
     }
 
@@ -59,6 +62,11 @@ class Itinerary extends Model
     public function items(): HasManyThrough
     {
         return $this->hasManyThrough(ItineraryItem::class, ItineraryDay::class);
+    }
+
+    public function pricingOverrides(): HasMany
+    {
+        return $this->hasMany(ItineraryPricingOverride::class);
     }
 
     public function profitStatus(): string

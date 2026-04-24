@@ -6,13 +6,20 @@ use App\Models\Itinerary\Itinerary;
 use App\Models\Itinerary\ItineraryItem;
 use App\Models\MasterData\Activity;
 use App\Models\MasterData\Extra;
-use App\Models\MasterData\DestinationFee;
+use App\Models\MasterData\ParkFee;
 use App\Models\MasterData\Flight;
 use App\Models\MasterData\HotelRate;
 use App\Models\MasterData\Vehicle;
+use App\Services\Pricing\PricingEngineService;
+use App\Services\Pricing\PricingInput;
 
 class CostSheetService
 {
+    public function __construct(
+        private readonly PricingEngineService $pricingEngine,
+    ) {
+    }
+
     /**
      * Generate a full cost sheet for an itinerary.
      */
@@ -20,6 +27,7 @@ class CostSheetService
     {
         $itinerary->load('days.items');
         $people = $itinerary->number_of_people;
+        $markup = (float) $itinerary->markup_percentage;
 
         $breakdown = [
             'accommodation' => [],
@@ -39,7 +47,7 @@ class CostSheetService
             }
         }
 
-        $totals = $this->calculateCategoryTotals($breakdown, $people);
+        $totals = $this->calculateCategoryTotals($breakdown, $people, $markup);
 
         return [
             'itinerary_id' => $itinerary->id,
@@ -100,7 +108,7 @@ class CostSheetService
      */
     private function buildAccommodationLine(ItineraryItem $item, int $people, int $dayNumber): ?array
     {
-        $rate = HotelRate::with(['hotel', 'roomType', 'mealPlan'])->find($item->reference_id);
+        $rate = HotelRate::with(['hotel.accommodationMedia', 'roomType', 'mealPlan'])->find($item->reference_id);
         if (!$rate) {
             return null;
         }
@@ -108,6 +116,8 @@ class CostSheetService
         $nights = $item->quantity;
         $unitCost = (float) $rate->price_per_person;
         $total = round($unitCost * $people * $nights, 2);
+        $cover = $rate->hotel?->accommodationMedia->firstWhere('is_cover', true)
+            ?? $rate->hotel?->accommodationMedia->first();
 
         return [
             'day' => $dayNumber,
@@ -120,7 +130,7 @@ class CostSheetService
             'nights' => $nights,
             'people' => $people,
             'total' => $total,
-            'selling_price' => (float) $item->price,
+            'image_path' => $cover?->file_path,
         ];
     }
 
@@ -129,7 +139,7 @@ class CostSheetService
      */
     private function buildParkFeeLine(ItineraryItem $item, int $people, int $dayNumber): ?array
     {
-        $fee = DestinationFee::with('destination')->find($item->reference_id);
+        $fee = ParkFee::with('destination.media')->find($item->reference_id);
         if (!$fee) {
             return null;
         }
@@ -138,8 +148,8 @@ class CostSheetService
         $unitCost = (float) $fee->nr_adult;
         $markup = (float) $fee->markup;
         $costTotal = round($unitCost * $people * $days, 2);
-        $sellingUnit = $markup > 0 ? round($unitCost * (1 + $markup / 100), 2) : $unitCost;
-        $sellingTotal = round($sellingUnit * $people * $days, 2);
+        $cover = $fee->destination?->media->firstWhere('is_cover', true)
+            ?? $fee->destination?->media->first();
 
         return [
             'day' => $dayNumber,
@@ -153,7 +163,7 @@ class CostSheetService
             'days' => $days,
             'people' => $people,
             'total' => $costTotal,
-            'selling_price' => (float) ($item->price ?: $sellingTotal),
+            'image_path' => $cover?->file_path,
         ];
     }
 
@@ -182,7 +192,6 @@ class CostSheetService
             'days' => $days,
             'total' => $total,
             'per_person' => $perPerson,
-            'selling_price' => (float) $item->price,
         ];
     }
 
@@ -210,7 +219,6 @@ class CostSheetService
             'quantity' => $quantity,
             'people' => $people,
             'total' => $total,
-            'selling_price' => (float) $item->price,
         ];
     }
 
@@ -238,7 +246,6 @@ class CostSheetService
             'quantity' => $quantity,
             'people' => $people,
             'total' => $total,
-            'selling_price' => (float) $item->price,
         ];
     }
 
@@ -264,7 +271,6 @@ class CostSheetService
             'unit_price' => $unitPrice,
             'quantity' => $quantity,
             'total' => $total,
-            'selling_price' => (float) $item->price,
         ];
     }
 
@@ -272,7 +278,7 @@ class CostSheetService
     // Totals calculation
     // ────────────────────────────────────────────────────────────
 
-    private function calculateCategoryTotals(array $breakdown, int $people): array
+    private function calculateCategoryTotals(array $breakdown, int $people, float $markupPct = 0): array
     {
         $accommodationTotal = $this->sumCategory($breakdown['accommodation']);
         $parkTotal = $this->sumCategory($breakdown['park_fees']);
@@ -285,10 +291,16 @@ class CostSheetService
             2
         );
 
-        $sellingTotal = $this->sumSellingPrice($breakdown);
+        // Selling price is always derived from markup on total cost
+        $sellingBreakdown = $this->pricingEngine->compute(new PricingInput(
+            baseRate: $grandTotal,
+            markupPercent: $markupPct,
+        ));
+        $sellingTotal = (float) $sellingBreakdown->finalTotal;
         $profit = round($sellingTotal - $grandTotal, 2);
 
         $perPersonCost = $people > 0 ? round($grandTotal / $people, 2) : 0;
+        $perPersonSelling = $people > 0 ? round($sellingTotal / $people, 2) : 0;
         $margin = $sellingTotal > 0 ? round(($profit / $sellingTotal) * 100, 2) : 0;
 
         return [
@@ -299,25 +311,18 @@ class CostSheetService
             'extras_total' => $extrasTotal,
             'grand_total' => $grandTotal,
             'selling_total' => $sellingTotal,
+            'markup_percentage' => $markupPct,
             'profit' => $profit,
             'margin_percentage' => $margin,
             'profit_status' => $margin > 20 ? 'profit' : ($margin < 0 ? 'loss' : 'low'),
             'per_person_cost' => $perPersonCost,
+            'per_person_selling' => $perPersonSelling,
         ];
     }
 
     private function sumCategory(array $items): float
     {
         return round(array_sum(array_column($items, 'total')), 2);
-    }
-
-    private function sumSellingPrice(array $breakdown): float
-    {
-        $total = 0;
-        foreach ($breakdown as $items) {
-            $total += array_sum(array_column($items, 'selling_price'));
-        }
-        return round($total, 2);
     }
 
     /**

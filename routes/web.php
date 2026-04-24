@@ -4,6 +4,7 @@ use App\Http\Controllers\Pdf\PdfController;
 use App\Http\Controllers\Web\AccommodationController;
 use App\Http\Controllers\Web\FlightProviderController;
 use App\Http\Controllers\Web\MiscellaneousController;
+use App\Http\Controllers\Web\ModuleWorkspaceController;
 use App\Http\Controllers\Web\TransportProviderController;
 use App\Http\Controllers\Web\WebAuthController;
 use App\Http\Controllers\Web\WebController;
@@ -12,6 +13,11 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [WebAuthController::class, 'showLogin']);
 Route::get('/login', [WebAuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [WebAuthController::class, 'login']);
+Route::get('/itineraries/{itinerary}/preview', [WebController::class, 'publicPreview'])
+    ->name('itineraries.public-preview')
+    ->middleware('signed');
+Route::get('/itineraries/preview/{token}', [WebController::class, 'publicPreviewByToken'])
+    ->name('itineraries.public-preview-token');
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [WebAuthController::class, 'logout'])->name('logout');
@@ -51,10 +57,15 @@ Route::middleware('auth')->group(function () {
     // ── Accommodation (new module) ──
     Route::get('/accommodations', [AccommodationController::class, 'index']);
     Route::post('/accommodations', [AccommodationController::class, 'store']);
+    Route::get('/accommodations/{hotel}', [AccommodationController::class, 'show']);
+    Route::get('/accommodations/{hotel}/manage', [AccommodationController::class, 'manage']);
     Route::get('/accommodations/{hotel}/edit', [AccommodationController::class, 'edit']);
     Route::put('/accommodations/{hotel}', [AccommodationController::class, 'update']);
     Route::delete('/accommodations/{hotel}', [AccommodationController::class, 'delete']);
     Route::post('/accommodations/{hotel}/room-categories', [AccommodationController::class, 'storeRoomCategory']);
+    Route::post('/accommodations/{hotel}/room-types/sync', [AccommodationController::class, 'syncRoomTypes']);
+    Route::post('/accommodations/{hotel}/meal-plans', [AccommodationController::class, 'storeMealPlan']);
+    Route::post('/accommodations/{hotel}/owners', [AccommodationController::class, 'syncOwners']);
     Route::delete('/accommodations/{hotel}/room-categories/{category}', [AccommodationController::class, 'deleteRoomCategory']);
     Route::post('/accommodations/{hotel}/media', [AccommodationController::class, 'uploadMedia']);
     Route::delete('/accommodations/{hotel}/media/{media}', [AccommodationController::class, 'deleteMedia']);
@@ -70,20 +81,33 @@ Route::middleware('auth')->group(function () {
     Route::post('/accommodations/{hotel}/rate-types', [AccommodationController::class, 'storeRateType']);
     Route::delete('/accommodations/{hotel}/rate-types/{type}', [AccommodationController::class, 'deleteRateType']);
     Route::post('/accommodations/{hotel}/extra-fees', [AccommodationController::class, 'storeExtraFee']);
+    Route::put('/accommodations/{hotel}/extra-fees/{fee}', [AccommodationController::class, 'updateExtraFee']);
     Route::delete('/accommodations/{hotel}/extra-fees/{fee}', [AccommodationController::class, 'deleteExtraFee']);
     Route::post('/accommodations/{hotel}/holiday-supplements', [AccommodationController::class, 'storeHolidaySupplement']);
+    Route::put('/accommodations/{hotel}/holiday-supplements/{supplement}', [AccommodationController::class, 'updateHolidaySupplement']);
     Route::delete('/accommodations/{hotel}/holiday-supplements/{supplement}', [AccommodationController::class, 'deleteHolidaySupplement']);
     Route::post('/accommodations/{hotel}/activities', [AccommodationController::class, 'storeActivity']);
+    Route::put('/accommodations/{hotel}/activities/{activity}', [AccommodationController::class, 'updateActivity']);
     Route::delete('/accommodations/{hotel}/activities/{activity}', [AccommodationController::class, 'deleteActivity']);
     Route::post('/accommodations/{hotel}/child-policies', [AccommodationController::class, 'storeChildPolicy']);
+    Route::put('/accommodations/{hotel}/child-policies/{policy}', [AccommodationController::class, 'updateChildPolicy']);
     Route::delete('/accommodations/{hotel}/child-policies/{policy}', [AccommodationController::class, 'deleteChildPolicy']);
     Route::post('/accommodations/{hotel}/payment-policies', [AccommodationController::class, 'storePaymentPolicy']);
+    Route::put('/accommodations/{hotel}/payment-policies/{policy}', [AccommodationController::class, 'updatePaymentPolicy']);
     Route::delete('/accommodations/{hotel}/payment-policies/{policy}', [AccommodationController::class, 'deletePaymentPolicy']);
     Route::post('/accommodations/{hotel}/cancellation-policies', [AccommodationController::class, 'storeCancellationPolicy']);
+    Route::put('/accommodations/{hotel}/cancellation-policies/{policy}', [AccommodationController::class, 'updateCancellationPolicy']);
     Route::delete('/accommodations/{hotel}/cancellation-policies/{policy}', [AccommodationController::class, 'deleteCancellationPolicy']);
     Route::post('/accommodations/{hotel}/tour-leader-discounts', [AccommodationController::class, 'storeTourLeaderDiscount']);
+    Route::put('/accommodations/{hotel}/tour-leader-discounts/{discount}', [AccommodationController::class, 'updateTourLeaderDiscount']);
     Route::delete('/accommodations/{hotel}/tour-leader-discounts/{discount}', [AccommodationController::class, 'deleteTourLeaderDiscount']);
+    Route::post('/accommodations/{hotel}/backup-rates', [AccommodationController::class, 'storeBackupRate']);
+    Route::post('/accommodations/{hotel}/backup-rates/{backup}/restore', [AccommodationController::class, 'restoreBackupRate']);
+    Route::delete('/accommodations/{hotel}/backup-rates/{backup}', [AccommodationController::class, 'deleteBackupRate']);
     Route::post('/accommodations/import-csv', [AccommodationController::class, 'importCsv']);
+    Route::get('/accommodations/{hotel}/{section}', [ModuleWorkspaceController::class, 'accommodation'])
+        ->whereIn('section', ['content', 'structure', 'pricing', 'policies', 'settings'])
+        ->middleware('role:super_admin,admin,staff,hotel');
 
     // ── Flight Providers ──
     Route::get('/flight-providers', [FlightProviderController::class, 'index']);
@@ -105,6 +129,9 @@ Route::middleware('auth')->group(function () {
     Route::delete('/flight-providers/{provider}/child-pricing/{pricing}', [FlightProviderController::class, 'deleteChildPricing']);
     Route::post('/flight-providers/{provider}/policies', [FlightProviderController::class, 'storePolicy']);
     Route::delete('/flight-providers/{provider}/policies/{policy}', [FlightProviderController::class, 'deletePolicy']);
+    Route::get('/flight-providers/{provider}/{section}', [ModuleWorkspaceController::class, 'flight'])
+        ->whereIn('section', ['content', 'structure', 'pricing', 'policies', 'settings'])
+        ->middleware('role:super_admin,admin,staff,hotel');
 
     // ── Transport Providers ──
     Route::get('/transport-providers', [TransportProviderController::class, 'index']);
@@ -127,6 +154,9 @@ Route::middleware('auth')->group(function () {
     Route::put('/transport-providers/{provider}/cost-settings', [TransportProviderController::class, 'updateCostSettings']);
     Route::post('/transport-providers/{provider}/documents', [TransportProviderController::class, 'storeDocument']);
     Route::delete('/transport-providers/{provider}/documents/{document}', [TransportProviderController::class, 'deleteDocument']);
+    Route::get('/transport-providers/{provider}/{section}', [ModuleWorkspaceController::class, 'transport'])
+        ->whereIn('section', ['content', 'structure', 'pricing', 'policies', 'settings'])
+        ->middleware('role:super_admin,admin,staff,hotel');
 
     // ── Miscellaneous (Add-on Costs) ──
     Route::get('/miscellaneous', [MiscellaneousController::class, 'index']);
@@ -139,7 +169,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/vehicles', [WebController::class, 'storeVehicle']);
     Route::delete('/vehicles/{vehicle}', [WebController::class, 'deleteVehicle']);
 
-    // (Park fees merged into destinations)
+    Route::get('/park-fees', [WebController::class, 'parkFees']);
+    Route::post('/park-fees', [WebController::class, 'storeParkFee']);
+    Route::put('/park-fees/{parkFee}', [WebController::class, 'updateParkFee']);
+    Route::delete('/park-fees/{parkFee}', [WebController::class, 'deleteParkFee']);
 
     Route::get('/activities', [WebController::class, 'activities']);
     Route::post('/activities', [WebController::class, 'storeActivity']);
@@ -149,18 +182,34 @@ Route::middleware('auth')->group(function () {
     Route::post('/extras', [WebController::class, 'storeExtra']);
     Route::delete('/extras/{extra}', [WebController::class, 'deleteExtra']);
 
+    Route::get('/packages', [WebController::class, 'packages']);
+    Route::post('/packages', [WebController::class, 'storePackage']);
+    Route::post('/packages/bulk', [WebController::class, 'bulkPackages']);
+    Route::post('/packages/import-csv', [WebController::class, 'importPackagesCsv']);
+    Route::get('/packages/export-csv', [WebController::class, 'exportPackagesCsv']);
+    Route::get('/packages/template-csv', [WebController::class, 'templatePackagesCsv']);
+    Route::put('/packages/{package}', [WebController::class, 'updatePackage']);
+    Route::delete('/packages/{package}', [WebController::class, 'deletePackage']);
+
     Route::get('/flights', [WebController::class, 'flights']);
     Route::post('/flights', [WebController::class, 'storeFlight']);
     Route::delete('/flights/{flight}', [WebController::class, 'deleteFlight']);
 
     // ── Itineraries ──
     Route::get('/itineraries', [WebController::class, 'itineraries']);
+    Route::get('/operations/safari-calendar', [WebController::class, 'safariCalendar']);
     Route::post('/itineraries', [WebController::class, 'storeItinerary']);
     Route::get('/itineraries/{itinerary}', [WebController::class, 'showItinerary']);
+    Route::get('/itineraries/{itinerary}/builder', [WebController::class, 'showItineraryBuilder']);
     Route::delete('/itineraries/{itinerary}', [WebController::class, 'deleteItinerary']);
     Route::post('/itineraries/{itinerary}/items', [WebController::class, 'storeItem']);
     Route::delete('/itineraries/{itinerary}/items/{item}', [WebController::class, 'deleteItem']);
+    Route::post('/itineraries/{itinerary}/builder/state', [WebController::class, 'saveItineraryBuilderState']);
+    Route::post('/itineraries/{itinerary}/builder/reschedule', [WebController::class, 'rescheduleItinerary']);
+    Route::post('/itineraries/{itinerary}/builder/quote-service', [WebController::class, 'quoteItineraryService']);
     Route::post('/itineraries/{itinerary}/markup', [WebController::class, 'applyMarkup']);
+    Route::post('/itineraries/{itinerary}/share-token', [WebController::class, 'regenerateShareToken']);
+    Route::delete('/itineraries/{itinerary}/share-token', [WebController::class, 'revokeShareToken']);
 
     // ── PDF Downloads ──
     Route::get('/itineraries/{itinerary}/pdf/itinerary', [PdfController::class, 'itinerary'])->name('pdf.itinerary');

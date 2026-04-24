@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -17,6 +18,7 @@ class User extends Authenticatable
     const ROLE_SUPER_ADMIN = 'super_admin';
     const ROLE_ADMIN = 'admin';
     const ROLE_STAFF = 'staff';
+    const ROLE_HOTEL = 'hotel';
 
     protected $fillable = [
         'company_id',
@@ -61,6 +63,11 @@ class User extends Authenticatable
         return $this->role === self::ROLE_STAFF;
     }
 
+    public function isHotel(): bool
+    {
+        return $this->role === self::ROLE_HOTEL;
+    }
+
     public function hasRole(string ...$roles): bool
     {
         return in_array($this->role, $roles, true);
@@ -69,6 +76,11 @@ class User extends Authenticatable
     public function permissions()
     {
         return $this->belongsToMany(Permission::class, 'user_permissions');
+    }
+
+    public function hotels(): BelongsToMany
+    {
+        return $this->belongsToMany(\App\Models\MasterData\Hotel::class, 'hotel_user_assignments');
     }
 
     public function hasPermission(string $permission): bool

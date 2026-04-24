@@ -9,10 +9,11 @@
             <div class="topbar-user">
                 <span>{{ auth()->user()->name }}</span>
                 <span class="role-badge">{{ strtoupper(str_replace('_', ' ', auth()->user()->role)) }}</span>
-                <form method="POST" action="{{ url('/logout') }}" class="logout-form">@csrf<button type="submit">Logout</button></form>
             </div>
         </header>
         <div class="content-area">
+            @if(session('success'))<div class="toast toast-success">{{ session('success') }}</div>@endif
+            @if(session('error'))<div class="toast toast-error">{{ session('error') }}</div>@endif
             <div style="display:flex;gap:16px;align-items:center;margin-bottom:24px;">
                 <a href="{{ url('/companies') }}" style="color:#4f46e5;font-size:14px;">&larr; Back to Companies</a>
                 <h2 style="font-size:18px;font-weight:700;flex:1;">Company Overview</h2>
@@ -65,36 +66,11 @@
 
             {{-- Tabbed sections --}}
             <div style="display:flex;gap:8px;margin-bottom:20px;border-bottom:2px solid #e5e7eb;padding-bottom:0;">
-                <button class="tab-btn active" onclick="showTab('users')" id="tab-users" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid #4f46e5;margin-bottom:-2px;color:#4f46e5;">Users ({{ $company->users_count }})</button>
                 <button class="tab-btn" onclick="showTab('destinations')" id="tab-destinations" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:#6b7280;">Destinations ({{ $company->destinations_count }})</button>
                 <button class="tab-btn" onclick="showTab('hotels')" id="tab-hotels" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:#6b7280;">Hotels ({{ $company->hotels_count }})</button>
                 <button class="tab-btn" onclick="showTab('vehicles')" id="tab-vehicles" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:#6b7280;">Vehicles ({{ $company->vehicles_count }})</button>
-                <button class="tab-btn" onclick="showTab('itineraries')" id="tab-itineraries" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:#6b7280;">Itineraries ({{ $company->itineraries_count }})</button>
-            </div>
-
-            {{-- USERS TAB --}}
-            <div class="tab-panel" id="panel-users">
-                <div class="card">
-                    @if($users->count())
-                    <div class="table-wrap">
-                        <table>
-                            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th></tr></thead>
-                            <tbody>
-                                @foreach($users as $u)
-                                <tr>
-                                    <td style="font-weight:600;">{{ $u->name }}</td>
-                                    <td>{{ $u->email }}</td>
-                                    <td><span class="badge {{ $u->role === 'admin' ? 'badge-purple' : 'badge-blue' }}">{{ strtoupper($u->role) }}</span></td>
-                                    <td>{{ $u->created_at->format('M d, Y') }}</td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                    @else
-                    <div class="empty-state"><p>No users</p></div>
-                    @endif
-                </div>
+                <button class="tab-btn active" onclick="showTab('itineraries')" id="tab-itineraries" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid #4f46e5;margin-bottom:-2px;color:#4f46e5;">Itineraries ({{ $company->itineraries_count }})</button>
+                <button class="tab-btn" onclick="showTab('users')" id="tab-users" style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:#6b7280;">Users ({{ $company->users_count }})</button>
             </div>
 
             {{-- DESTINATIONS TAB --}}
@@ -187,7 +163,7 @@
             </div>
 
             {{-- ITINERARIES TAB --}}
-            <div class="tab-panel" id="panel-itineraries" style="display:none;">
+            <div class="tab-panel" id="panel-itineraries">
                 <div class="card">
                     @if($itineraries->count())
                     <div class="table-wrap">
@@ -213,7 +189,78 @@
                     @endif
                 </div>
             </div>
+
+            {{-- USERS TAB --}}
+            <div class="tab-panel" id="panel-users" style="display:none;">
+                <div class="page-header" style="margin-bottom:16px;">
+                    <h2>Company Users</h2>
+                    <button class="btn btn-primary" onclick="document.getElementById('company-user-modal').classList.add('open')">+ Add User</button>
+                </div>
+                <div class="card">
+                    @if($users->count())
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th></th></tr></thead>
+                            <tbody>
+                                @foreach($users as $u)
+                                <tr>
+                                    <td style="font-weight:600;">{{ $u->name }}</td>
+                                    <td>{{ $u->email }}</td>
+                                    <td>
+                                        @if($u->role === 'admin')
+                                            <span class="badge badge-purple">ADMIN</span>
+                                        @elseif($u->role === 'hotel')
+                                            <span class="badge badge-amber">HOTEL</span>
+                                        @else
+                                            <span class="badge badge-blue">STAFF</span>
+                                        @endif
+                                    </td>
+                                    <td><span class="badge {{ $u->is_active ? 'badge-green' : 'badge-red' }}">{{ $u->is_active ? 'Active' : 'Inactive' }}</span></td>
+                                    <td>{{ $u->created_at->format('M d, Y') }}</td>
+                                    <td>
+                                        @if($u->id !== auth()->id())
+                                        <form method="POST" action="{{ url('/users/' . $u->id) }}" class="delete-form" onsubmit="return confirm('Delete this user?')">
+                                            @csrf @method('DELETE')
+                                            <button type="submit">Delete</button>
+                                        </form>
+                                        @endif
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @else
+                    <div class="empty-state"><p>No users</p></div>
+                    @endif
+                </div>
+            </div>
         </div>
+    </div>
+</div>
+
+<div class="modal-backdrop" id="company-user-modal">
+    <div class="modal">
+        <h3>Add Company User</h3>
+        <form method="POST" action="{{ url('/users') }}">
+            @csrf
+            <input type="hidden" name="company_id" value="{{ $company->id }}">
+            <div class="form-group"><label>Name *</label><input type="text" name="name" required></div>
+            <div class="form-group"><label>Email *</label><input type="email" name="email" required></div>
+            <div class="form-group"><label>Password *</label><input type="password" name="password" minlength="6" required></div>
+            <div class="form-group">
+                <label>Role *</label>
+                <select name="role" required>
+                    <option value="staff">Staff</option>
+                    <option value="hotel">Hotel</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-ghost" onclick="document.getElementById('company-user-modal').classList.remove('open')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create User</button>
+            </div>
+        </form>
     </div>
 </div>
 

@@ -12,10 +12,6 @@
             <div class="topbar-user">
                 <span>{{ auth()->user()->name }}</span>
                 <span class="role-badge">{{ strtoupper(str_replace('_', ' ', auth()->user()->role)) }}</span>
-                <form method="POST" action="{{ url('/logout') }}" class="logout-form">
-                    @csrf
-                    <button type="submit">Logout</button>
-                </form>
             </div>
         </header>
 

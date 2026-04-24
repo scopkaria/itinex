@@ -54,4 +54,55 @@ class TransportProvider extends Model
     {
         return $this->hasMany(TransportDocument::class);
     }
+
+    // ─── Pricing Engine Relations ─────────────────────────────
+    public function rateYears()
+    {
+        return $this->hasMany(TransportRateYear::class);
+    }
+
+    public function seasons()
+    {
+        return $this->hasMany(TransportSeason::class);
+    }
+
+    public function rateTypes()
+    {
+        return $this->hasMany(TransportRateType::class);
+    }
+
+    public function transferRates()
+    {
+        return $this->hasMany(TransportTransferRate::class);
+    }
+
+    public function emptyRunRates()
+    {
+        return $this->hasMany(TransportEmptyRunRate::class);
+    }
+
+    public function vehicleDescriptions()
+    {
+        return $this->hasMany(TransportVehicleDescription::class);
+    }
+
+    public function impresetComponents()
+    {
+        return $this->hasMany(TransportImpresetComponent::class);
+    }
+
+    public function paymentPolicies()
+    {
+        return $this->hasMany(TransportPaymentPolicy::class);
+    }
+
+    public function cancellationPolicies()
+    {
+        return $this->hasMany(TransportCancellationPolicy::class);
+    }
+
+    public function rateVersions()
+    {
+        return $this->hasMany(TransportRateVersion::class);
+    }
 }

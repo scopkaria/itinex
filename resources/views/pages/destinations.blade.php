@@ -1,96 +1,92 @@
 @extends('layouts.app')
 @section('title', 'Destinations — Itinex')
-@section('body')
+@section('styles')
 <style>
-    .dest-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
-    .dest-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 0; overflow: hidden; transition: box-shadow .2s; }
-    .dest-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,.06); }
-    .dest-card-body { padding: 20px 24px 16px; }
-    .dest-card-name { font-size: 16px; font-weight: 700; color: #111827; margin-bottom: 4px; }
-    .dest-card-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-    .dest-card-meta span { font-size: 12px; color: #6b7280; }
-    .dest-card-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
-    .dest-card-detail .detail-item { font-size: 12px; }
-    .dest-card-detail .detail-label { color: #9ca3af; font-weight: 500; }
-    .dest-card-detail .detail-value { color: #374151; font-weight: 600; }
-    .dest-card-actions { display: flex; gap: 0; border-top: 1px solid #f3f4f6; }
-    .dest-card-actions a,
-    .dest-card-actions button { flex: 1; padding: 10px; text-align: center; font-size: 12px; font-weight: 600; border: none; background: none; cursor: pointer; transition: background .15s; color: #6b7280; text-decoration: none; }
-    .dest-card-actions a:hover,
-    .dest-card-actions button:hover { background: #f9fafb; }
-    .dest-card-actions .act-view { color: #4f46e5; }
-    .dest-card-actions .act-edit { color: #059669; }
-    .dest-card-actions .act-clone { color: #d97706; }
-    .dest-card-actions .act-delete { color: #ef4444; }
-    .dest-card-actions .act-sep { width: 1px; background: #f3f4f6; }
-    .type-tag { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-    .type-national_park { background: #dcfce7; color: #166534; }
-    .type-conservancy { background: #fef3c7; color: #92400e; }
-    .type-reserve { background: #dbeafe; color: #1e40af; }
-    .type-marine_park { background: #e0e7ff; color: #4338ca; }
-    .type-other { background: #f3f4f6; color: #4b5563; }
+    .dest-row { display: flex; align-items: center; gap: 16px; padding: 14px 20px; border-bottom: 1px solid var(--border-light); transition: background var(--duration-fast); }
+    .dest-row:hover { background: var(--bg-table-hover); }
+    .dest-row:last-child { border-bottom: none; }
+    .dest-num { width: 36px; font-size: 12px; color: var(--text-muted); font-weight: 600; text-align: center; flex-shrink: 0; }
+    .dest-thumb { width: 52px; height: 52px; border-radius: var(--radius-md); background: var(--bg-muted); flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+    .dest-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .dest-thumb svg { opacity: .45; }
+    .dest-info { flex: 1; min-width: 0; }
+    .dest-name { font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
+    .dest-meta { font-size: 12px; color: var(--text-muted); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .dest-col { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .dest-stat { text-align: center; padding: 0 12px; }
+    .dest-stat-val { font-size: 16px; font-weight: 700; color: var(--text-primary); }
+    .dest-stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
 </style>
+@endsection
+@section('body')
 <div class="app-wrapper">
     @include('partials.sidebar', ['activePage' => 'destinations'])
     <div class="main-content">
         <header class="topbar">
-            <h2 style="font-size:20px;font-weight:700;">Destinations</h2>
+            <h2>Destinations</h2>
             <div class="topbar-user">
-                <span>{{ auth()->user()->name }}</span>
+                <span class="user-name">{{ auth()->user()->name }}</span>
                 <span class="role-badge">{{ strtoupper(str_replace('_', ' ', auth()->user()->role)) }}</span>
-                <form method="POST" action="{{ url('/logout') }}" class="logout-form">@csrf<button type="submit">Logout</button></form>
             </div>
         </header>
         <div class="content-area">
             @if(session('success'))<div class="toast toast-success">{{ session('success') }}</div>@endif
 
             <div class="page-header">
-                <h2>All Destinations <span style="color:#9ca3af;font-weight:400;font-size:14px;">({{ $destinations->count() }})</span></h2>
-                <a href="{{ url('/destinations/create') }}" class="btn btn-primary">+ Add Destination</a>
+                <h2>All Destinations <span class="page-title-count">({{ $destinations->count() }})</span></h2>
+                <a href="{{ url('/destinations/create') }}" class="btn btn-primary">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add Destination
+                </a>
             </div>
 
             @if($destinations->count())
-            <div style="margin-bottom:16px;">
-                <input type="text" id="destSearch" placeholder="Search destinations by name, category, country, region…" style="width:100%;max-width:480px;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;">
+            {{-- Filter bar --}}
+            <div class="filter-bar">
+                <input type="text" id="destSearch" class="search-input" placeholder="Search destinations by name, country, region..." style="max-width:480px;">
+                <select id="destTypeFilter" class="filter-select" onchange="filterDests()">
+                    <option value="">All Types</option>
+                    <option value="national_park">National Park</option>
+                    <option value="conservancy">Conservancy</option>
+                    <option value="reserve">Reserve</option>
+                    <option value="marine_park">Marine Park</option>
+                    <option value="other">Other</option>
+                </select>
             </div>
-            <div class="dest-grid">
-                @foreach($destinations as $d)
-                <div class="dest-card">
-                    <div class="dest-card-body">
-                        <div class="dest-card-name">{{ $d->name }}</div>
-                        <div class="dest-card-meta">
+
+            <div class="card card-flush">
+                @foreach($destinations as $idx => $d)
+                <div class="dest-row" data-search="{{ strtolower($d->name . ' ' . ($d->countryRef?->name ?? '') . ' ' . ($d->regionRef?->name ?? '') . ' ' . $d->category) }}" data-type="{{ $d->category }}">
+                    <span class="dest-num">{{ $idx + 1 }}</span>
+                    <div class="dest-thumb">
+                        @php
+                            $cover = $d->media->firstWhere('is_cover', true) ?? $d->media->first();
+                        @endphp
+                        @if($cover)
+                            <img src="{{ asset('storage/' . $cover->file_path) }}" alt="{{ $d->name }}">
+                        @else
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        @endif
+                    </div>
+                    <div class="dest-info">
+                        <div class="dest-name">{{ $d->name }}</div>
+                        <div class="dest-meta">
                             <span class="type-tag type-{{ $d->category }}">{{ strtoupper(str_replace('_', ' ', $d->category)) }}</span>
                             @if($d->countryRef)<span>{{ $d->countryRef->name }}</span>@endif
-                        </div>
-                        <div class="dest-card-detail">
-                            <div class="detail-item">
-                                <div class="detail-label">Supplier</div>
-                                <div class="detail-value">{{ $d->supplier ?? '—' }}</div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Region</div>
-                                <div class="detail-value">{{ $d->regionRef?->name ?? '—' }}</div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Rates</div>
-                                <div class="detail-value">{{ $d->fees_count }} {{ Str::plural('rate', $d->fees_count) }}</div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Email</div>
-                                <div class="detail-value" style="word-break:break-all;">{{ $d->email ?? '—' }}</div>
-                            </div>
+                            @if($d->regionRef)<span>{{ $d->regionRef->name }}</span>@endif
+                            @if($d->supplier)<span>{{ $d->supplier }}</span>@endif
                         </div>
                     </div>
-                    <div class="dest-card-actions">
-                        <a href="{{ url('/destinations/' . $d->id . '/edit') }}" class="act-view">&#128065; View</a>
-                        <div class="act-sep"></div>
-                        <a href="{{ url('/destinations/' . $d->id . '/edit') }}" class="act-edit">&#9998; Edit</a>
-                        <div class="act-sep"></div>
-                        <button type="button" class="act-clone" onclick="openClone({{ $d->id }}, '{{ addslashes($d->name) }}')">&#128203; Clone</button>
-                        <div class="act-sep"></div>
-                        <form method="POST" action="{{ url('/destinations/' . $d->id) }}" onsubmit="return confirm('Delete {{ addslashes($d->name) }} and all its rates?')" style="flex:1;display:flex;">
+                    <div class="dest-stat">
+                        <div class="dest-stat-val">{{ $d->fees_count }}</div>
+                        <div class="dest-stat-label">Rates</div>
+                    </div>
+                    <div class="action-cell">
+                        <a href="{{ url('/destinations/' . $d->id . '/edit') }}" class="act-open">Open</a>
+                        <button type="button" class="act-edit" onclick="openClone({{ $d->id }}, '{{ addslashes($d->name) }}')">Clone</button>
+                        <form method="POST" action="{{ url('/destinations/' . $d->id) }}" onsubmit="return confirm('Delete {{ addslashes($d->name) }} and all its rates?')" class="delete-form">
                             @csrf @method('DELETE')
-                            <button type="submit" class="act-delete" style="flex:1;">&#128465; Delete</button>
+                            <button type="submit" class="act-delete">Delete</button>
                         </form>
                     </div>
                 </div>
@@ -99,7 +95,9 @@
             @else
             <div class="card">
                 <div class="empty-state">
-                    <div class="empty-icon">&#127961;</div>
+                    <div class="empty-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.4"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    </div>
                     <p>No destinations yet</p>
                     <a href="{{ url('/destinations/create') }}" class="btn btn-primary" style="margin-top:16px;">+ Add Your First Destination</a>
                 </div>
@@ -113,20 +111,20 @@
 <div class="modal-backdrop" id="cloneModal">
     <div class="modal" style="max-width:420px;">
         <h3>Clone Destination</h3>
-        <p style="font-size:13px;color:#6b7280;margin-bottom:16px;">This will duplicate the destination and all its rates.</p>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">This will duplicate the destination and all its rates.</p>
         <form method="POST" action="{{ url('/destinations/clone') }}">
             @csrf
             <input type="hidden" name="source_id" id="cloneSourceId">
             <div class="form-group">
                 <label>Source</label>
-                <input type="text" id="cloneSourceName" disabled style="background:#f9fafb;">
+                <input type="text" id="cloneSourceName" disabled style="background:var(--bg-muted);">
             </div>
             <div class="form-group">
                 <label>New Name *</label>
                 <input type="text" name="name" required placeholder="Enter new destination name">
             </div>
             <div class="modal-actions">
-                <button type="button" class="btn-ghost" onclick="document.getElementById('cloneModal').classList.remove('open')">Cancel</button>
+                <button type="button" class="btn btn-ghost" onclick="document.getElementById('cloneModal').classList.remove('open')">Cancel</button>
                 <button type="submit" class="btn btn-primary">Clone</button>
             </div>
         </form>
@@ -139,11 +137,16 @@ function openClone(id, name) {
     document.getElementById('cloneSourceName').value = name;
     document.getElementById('cloneModal').classList.add('open');
 }
-document.getElementById('destSearch')?.addEventListener('input', function() {
-    const q = this.value.toLowerCase();
-    document.querySelectorAll('.dest-card').forEach(function(card) {
-        card.style.display = card.textContent.toLowerCase().includes(q) ? '' : 'none';
+function filterDests() {
+    const q = (document.getElementById('destSearch')?.value || '').toLowerCase();
+    const type = document.getElementById('destTypeFilter')?.value || '';
+    document.querySelectorAll('.dest-row').forEach(function(row) {
+        const text = row.dataset.search;
+        const rowType = row.dataset.type;
+        let show = (!q || text.includes(q)) && (!type || rowType === type);
+        row.style.display = show ? '' : 'none';
     });
-});
+}
+document.getElementById('destSearch')?.addEventListener('input', filterDests);
 </script>
 @endsection

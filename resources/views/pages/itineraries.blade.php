@@ -49,6 +49,7 @@
                                     <td><span class="badge {{ $statusColor }}">{{ strtoupper($status) }}</span></td>
                                     <td>
                                         <a href="{{ url('/itineraries/' . $it->id) }}" style="color:#4f46e5;font-size:13px;font-weight:500;">View</a>
+                                        <a href="{{ url('/itineraries/' . $it->id . '/builder') }}" style="color:#0f766e;font-size:13px;font-weight:700;margin-left:8px;">Builder</a>
                                         <form method="POST" action="{{ url('/itineraries/' . $it->id) }}" class="delete-form" onsubmit="return confirm('Delete this itinerary and all its items?')" style="display:inline;margin-left:8px;">
                                             @csrf @method('DELETE')
                                             <button type="submit">Delete</button>

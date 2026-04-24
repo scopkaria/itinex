@@ -7,6 +7,7 @@ use App\Http\Controllers\Traits\TenantScoped;
 use App\Models\Itinerary\Itinerary;
 use App\Models\Itinerary\ItineraryDay;
 use App\Models\Itinerary\ItineraryItem;
+use App\Models\Itinerary\ItineraryPricingOverride;
 use App\Services\ItineraryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -79,7 +80,11 @@ class ItineraryController extends Controller
 
         return response()->json([
             'itinerary' => $itinerary,
-            ...$this->service->summary($itinerary),
+            ...$this->service->summary(
+                $itinerary,
+                $request->query('partner_type'),
+                $request->query('partner_key')
+            ),
         ]);
     }
 
@@ -181,8 +186,10 @@ class ItineraryController extends Controller
         $data = $request->validate([
             'type' => ['required', 'in:hotel,transport,park_fee,activity,extra,flight'],
             'reference_id' => ['required', 'integer'],
+            'reference_source' => ['nullable', 'string', 'max:60'],
             'quantity' => ['sometimes', 'integer', 'min:1'],
             'price' => ['sometimes', 'numeric', 'min:0'],
+            'meta' => ['nullable', 'array'],
         ]);
 
         $data['itinerary_day_id'] = $day->id;
@@ -203,7 +210,11 @@ class ItineraryController extends Controller
 
         return response()->json([
             'item' => $item->fresh(),
-            ...$this->service->summary($itinerary),
+            ...$this->service->summary(
+                $itinerary,
+                $request->query('partner_type'),
+                $request->query('partner_key')
+            ),
         ], 201);
     }
 
@@ -222,6 +233,8 @@ class ItineraryController extends Controller
             'quantity' => ['sometimes', 'integer', 'min:1'],
             'price' => ['sometimes', 'numeric', 'min:0'],
             'reference_id' => ['sometimes', 'integer'],
+            'reference_source' => ['sometimes', 'nullable', 'string', 'max:60'],
+            'meta' => ['sometimes', 'nullable', 'array'],
         ]);
 
         $item->update($data);
@@ -234,7 +247,11 @@ class ItineraryController extends Controller
 
         return response()->json([
             'item' => $item->fresh(),
-            ...$this->service->summary($itinerary),
+            ...$this->service->summary(
+                $itinerary,
+                $request->query('partner_type'),
+                $request->query('partner_key')
+            ),
         ]);
     }
 
@@ -254,7 +271,11 @@ class ItineraryController extends Controller
 
         return response()->json([
             'message' => 'Item removed.',
-            ...$this->service->summary($itinerary),
+            ...$this->service->summary(
+                $itinerary,
+                $request->query('partner_type'),
+                $request->query('partner_key')
+            ),
         ]);
     }
 
@@ -267,7 +288,67 @@ class ItineraryController extends Controller
 
         $itinerary = $this->service->recalculate($itinerary);
 
-        return response()->json($this->service->summary($itinerary));
+        return response()->json($this->service->summary(
+            $itinerary,
+            $request->query('partner_type'),
+            $request->query('partner_key')
+        ));
+    }
+
+    public function upsertPartnerOverride(Request $request, Itinerary $itinerary): JsonResponse
+    {
+        $this->authorizeCompany($request, $itinerary);
+
+        $data = $request->validate([
+            'partner_type' => ['required', 'in:agent,partner'],
+            'partner_key' => ['required', 'string', 'max:120'],
+            'override_mode' => ['required', 'in:percent,fixed'],
+            'override_value' => ['required', 'numeric', 'min:-999999', 'max:999999'],
+            'is_active' => ['nullable', 'boolean'],
+            'notes' => ['nullable', 'string'],
+        ]);
+
+        $override = ItineraryPricingOverride::query()->updateOrCreate(
+            [
+                'itinerary_id' => $itinerary->id,
+                'company_id' => $itinerary->company_id,
+                'partner_type' => $data['partner_type'],
+                'partner_key' => $data['partner_key'],
+            ],
+            [
+                'override_mode' => $data['override_mode'],
+                'override_value' => $data['override_value'],
+                'is_active' => $data['is_active'] ?? true,
+                'notes' => $data['notes'] ?? null,
+            ]
+        );
+
+        return response()->json([
+            'override' => $override,
+            ...$this->service->summary($itinerary, $override->partner_type, $override->partner_key),
+        ]);
+    }
+
+    public function deletePartnerOverride(Request $request, Itinerary $itinerary): JsonResponse
+    {
+        $this->authorizeCompany($request, $itinerary);
+
+        $data = $request->validate([
+            'partner_type' => ['required', 'in:agent,partner'],
+            'partner_key' => ['required', 'string', 'max:120'],
+        ]);
+
+        ItineraryPricingOverride::query()
+            ->where('itinerary_id', $itinerary->id)
+            ->where('company_id', $itinerary->company_id)
+            ->where('partner_type', $data['partner_type'])
+            ->where('partner_key', $data['partner_key'])
+            ->delete();
+
+        return response()->json([
+            'message' => 'Override removed.',
+            ...$this->service->summary($itinerary),
+        ]);
     }
 
     /**

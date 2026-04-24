@@ -26,12 +26,23 @@ class Company extends Model
         'phone',
         'address',
         'is_active',
+        'subscription_plan',
+        'max_users',
+        'enable_flights',
+        'enable_transport',
+        'enable_activities',
+        'enable_advanced_rates',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'max_users' => 'integer',
+            'enable_flights' => 'boolean',
+            'enable_transport' => 'boolean',
+            'enable_activities' => 'boolean',
+            'enable_advanced_rates' => 'boolean',
         ];
     }
 
@@ -88,5 +99,25 @@ class Company extends Model
     public function countries(): BelongsToMany
     {
         return $this->belongsToMany(Country::class, 'company_country_access')->withTimestamps();
+    }
+
+    public function branches(): HasMany
+    {
+        return $this->hasMany(CompanyBranch::class);
+    }
+
+    public function contacts(): HasMany
+    {
+        return $this->hasMany(CompanyContact::class);
+    }
+
+    public function activeUsersCount(): int
+    {
+        return $this->users()->where('is_active', true)->count();
+    }
+
+    public function canAddUser(): bool
+    {
+        return $this->activeUsersCount() < max(1, (int) $this->max_users);
     }
 }

@@ -13,11 +13,17 @@ use App\Models\MasterData\FlightProvider;
 use App\Models\MasterData\FlightRoute;
 use App\Models\MasterData\FlightSeasonalRate;
 use App\Models\MasterData\ScheduledFlight;
+use App\Services\Pricing\RateAuditVersioningService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class FlightProviderController extends Controller
 {
+    public function __construct(
+        private readonly RateAuditVersioningService $rateAuditService,
+    ) {
+    }
+
     private function companyId(): ?int
     {
         return Auth::user()->company_id;
@@ -199,14 +205,45 @@ class FlightProviderController extends Controller
             'rate_type' => 'required|in:scheduled,charter',
             'currency' => 'nullable|string|size:3',
         ]);
-        $provider->seasonalRates()->create($data);
+        $rate = $provider->seasonalRates()->create($data);
+
+        $this->rateAuditService->record(
+            module: 'flight',
+            companyId: (int) $provider->company_id,
+            providerId: (int) $provider->id,
+            providerType: FlightProvider::class,
+            entityType: 'flight_seasonal_rate',
+            entityId: (int) $rate->id,
+            action: 'created',
+            beforeState: null,
+            afterState: $rate->toArray(),
+            changedBy: Auth::id(),
+            source: 'web'
+        );
+
         return back()->with('success', 'Seasonal rate added.');
     }
 
     public function deleteSeasonalRate(FlightProvider $provider, FlightSeasonalRate $rate)
     {
         $this->authorize($provider);
+        $before = $rate->toArray();
         $rate->delete();
+
+        $this->rateAuditService->record(
+            module: 'flight',
+            companyId: (int) $provider->company_id,
+            providerId: (int) $provider->id,
+            providerType: FlightProvider::class,
+            entityType: 'flight_seasonal_rate',
+            entityId: (int) ($before['id'] ?? 0),
+            action: 'deleted',
+            beforeState: $before,
+            afterState: null,
+            changedBy: Auth::id(),
+            source: 'web'
+        );
+
         return back()->with('success', 'Seasonal rate deleted.');
     }
 
@@ -226,14 +263,45 @@ class FlightProviderController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
         $data['is_active'] = $request->boolean('is_active', true);
-        $provider->scheduledFlights()->create($data);
+        $flight = $provider->scheduledFlights()->create($data);
+
+        $this->rateAuditService->record(
+            module: 'flight',
+            companyId: (int) $provider->company_id,
+            providerId: (int) $provider->id,
+            providerType: FlightProvider::class,
+            entityType: 'scheduled_flight',
+            entityId: (int) $flight->id,
+            action: 'created',
+            beforeState: null,
+            afterState: $flight->toArray(),
+            changedBy: Auth::id(),
+            source: 'web'
+        );
+
         return back()->with('success', 'Scheduled flight added.');
     }
 
     public function deleteScheduledFlight(FlightProvider $provider, ScheduledFlight $flight)
     {
         $this->authorize($provider);
+        $before = $flight->toArray();
         $flight->delete();
+
+        $this->rateAuditService->record(
+            module: 'flight',
+            companyId: (int) $provider->company_id,
+            providerId: (int) $provider->id,
+            providerType: FlightProvider::class,
+            entityType: 'scheduled_flight',
+            entityId: (int) ($before['id'] ?? 0),
+            action: 'deleted',
+            beforeState: $before,
+            afterState: null,
+            changedBy: Auth::id(),
+            source: 'web'
+        );
+
         return back()->with('success', 'Scheduled flight deleted.');
     }
 
@@ -249,14 +317,45 @@ class FlightProviderController extends Controller
             'total_charter_price' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
         ]);
-        $provider->charterFlights()->create($data);
+        $flight = $provider->charterFlights()->create($data);
+
+        $this->rateAuditService->record(
+            module: 'flight',
+            companyId: (int) $provider->company_id,
+            providerId: (int) $provider->id,
+            providerType: FlightProvider::class,
+            entityType: 'charter_flight',
+            entityId: (int) $flight->id,
+            action: 'created',
+            beforeState: null,
+            afterState: $flight->toArray(),
+            changedBy: Auth::id(),
+            source: 'web'
+        );
+
         return back()->with('success', 'Charter flight added.');
     }
 
     public function deleteCharterFlight(FlightProvider $provider, CharterFlight $flight)
     {
         $this->authorize($provider);
+        $before = $flight->toArray();
         $flight->delete();
+
+        $this->rateAuditService->record(
+            module: 'flight',
+            companyId: (int) $provider->company_id,
+            providerId: (int) $provider->id,
+            providerType: FlightProvider::class,
+            entityType: 'charter_flight',
+            entityId: (int) ($before['id'] ?? 0),
+            action: 'deleted',
+            beforeState: $before,
+            afterState: null,
+            changedBy: Auth::id(),
+            source: 'web'
+        );
+
         return back()->with('success', 'Charter flight deleted.');
     }
 

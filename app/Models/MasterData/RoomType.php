@@ -11,6 +11,12 @@ class RoomType extends Model
     protected $fillable = [
         'hotel_id',
         'type',
+        'label',
+        'max_adults',
+    ];
+
+    protected $casts = [
+        'max_adults' => 'integer',
     ];
 
     public function hotel(): BelongsTo
@@ -20,6 +26,6 @@ class RoomType extends Model
 
     public function rates(): HasMany
     {
-        return $this->hasMany(HotelRate::class);
+        return $this->hasMany(AccommodationRoomRate::class);
     }
 }

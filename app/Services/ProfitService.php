@@ -3,9 +3,16 @@
 namespace App\Services;
 
 use App\Models\Itinerary\Itinerary;
+use App\Services\Pricing\PricingEngineService;
+use App\Services\Pricing\PricingInput;
 
 class ProfitService
 {
+    public function __construct(
+        private readonly PricingEngineService $pricingEngine,
+    ) {
+    }
+
     /**
      * Apply a markup percentage to a cost.
      * Returns the markup amount.
@@ -21,7 +28,12 @@ class ProfitService
      */
     public function calculateSellingPrice(float $totalCost, float $markupPercentage): float
     {
-        return round($totalCost + $this->applyMarkup($totalCost, $markupPercentage), 2);
+        $breakdown = $this->pricingEngine->compute(new PricingInput(
+            baseRate: $totalCost,
+            markupPercent: $markupPercentage,
+        ));
+
+        return round($breakdown->finalTotal, 2);
     }
 
     /**
